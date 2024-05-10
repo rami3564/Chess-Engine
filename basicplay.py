@@ -4,6 +4,7 @@ import chess
 import json
 
 
+
 class TreeNode:
     def __init__(self, board, turn, parent=None):
         if isinstance(board, str):
@@ -106,16 +107,15 @@ class AlphaBetaChessTree:
                 continue # Skip invalid moves
 
             #Evaluate the move using alpha-beta pruning
-            value, _ = self._alpha_beta(new_node, depth-1, float('-inf'), float('inf'), False)
+            value = self._alpha_beta(new_node, depth-1, float('-inf'), float('inf'), False, node.turn)
 
             #Update the best move if needed
             if value > best_value:
                 best_value = value
                 best_move = move
-        print(best_value)
         return best_move
 
-    def _alpha_beta(self, node, depth, alpha, beta, maximizing_player):
+    def _alpha_beta(self, node, depth, alpha, beta, maximizing_player, turn):
         """
         The Alpha-Beta pruning algorithm implementation. This method is used to evaluate game positions.
         :param node: The current node (game state).
@@ -132,35 +132,31 @@ class AlphaBetaChessTree:
                 continue # Skip invalid moves
         
         if depth == 0 or node.is_leaf():
-            return self._evaluate_position(node, depth), None
+            return self._evaluate_position(node, depth, turn)
         
         if maximizing_player:
             value = float('-inf')
-            best_move = None
             for child in node.children:
-                child_value, _ = self._alpha_beta(child, depth-1, alpha, beta, False)
+                child_value = self._alpha_beta(child, depth-1, alpha, beta, False,turn)
                 if child_value > value:
                     value = child_value
-                    best_move = child
                 alpha = max(alpha, value)
                 if alpha >= beta:
                     break # Beta cut-off
-            return value, best_move
+            return value
         if not maximizing_player:
             value = float('inf')
-            best_move = None
             for child in node.children:
-                child_value, _ = self._alpha_beta(child, depth-1, alpha, beta, True)
+                child_value = self._alpha_beta(child, depth-1, alpha, beta, True ,turn)
                 if child_value < value:
                     value = child_value
-                    best_move = child
                 beta = min(beta, value)
                 if alpha >= beta:
                     break # Alpha cut-off
-            return value, best_move
+            return value
         
 
-    def _evaluate_position(self, node, depth):
+    def _evaluate_position(self, node, depth, turn):
         """
         Evaluates the position at a given node, taking into account the depth of the node in the decision tree.
         :param node: The game state to evaluate.
@@ -177,35 +173,39 @@ class AlphaBetaChessTree:
         #Material value weights
         piece_values = {'P': 100, 'N': 320, 'B': 330, 'R': 500, 'Q': 900, 'K': 20000,
                         'p': -100, 'n': -320, 'b': -330, 'r': -500, 'q': -900, 'k': -20000}
-
-        if board.turn == chess.BLACK:
-            turn = -1
-        else:
-            turn = 1
+        
+        if turn!='w':
+            for square in chess.SQUARES:
+                piece = board.piece_at(square)
+                if piece is not None:
+                    score += piece_values[piece.symbol()] *(-1)
+                    
+            mobility = len(list(board.legal_moves))
+            score += mobility if board.turn == chess.BLACK else -mobility
+            return score
             
         for square in chess.SQUARES:
             piece = board.piece_at(square)
             if piece is not None:
                 score += piece_values[piece.symbol()] 
-        
+        #print("white")
         # Evaluate mobility 
         mobility = len(list(board.legal_moves))
         score += mobility if board.turn == chess.WHITE else -mobility
 
         # Evaluate king safety
         
-        king_safety = self._evaluate_king_safety(board, chess.WHITE) - self._evaluate_king_safety(board, chess.BLACK)
-        score += king_safety
+        #king_safety = self._evaluate_king_safety(board, chess.WHITE) - self._evaluate_king_safety(board, chess.BLACK)
+        #score += king_safety
 
         #Center control
 
-        center_control = [chess.D4, chess.E4, chess.D5, chess.E5]
-        center_score = sum(1 for square in center_control if board.piece_at(square) and board.color_at(square) == board.turn)
-        score += center_score * 10
+        #center_score = sum(1 for square in center_control if board.piece_at(square) and board.color_at(square) == board.turn)
+        #score += center_score * 10
 
 
         #Pawn structure
-        score += self._evaluate_pawn_structure(board)
+        #score += self._evaluate_pawn_structure(board)
 
         
         #Add adjustments for positional factors, mobility, king safety, etc.
@@ -247,12 +247,7 @@ class AlphaBetaChessTree:
         piece_values = {'P': 100, 'N': 320, 'B': 330, 'R': 500, 'Q': 900, 'K': 20000,
                         'p': -100, 'n': -320, 'b': -330, 'r': -500, 'q': -900, 'k': -20000}
         
-        # Calculate the material value of the pieces on the board.  
-        if board.turn == chess.BLACK:
-            turn = -1
-        else:
-            turn = 1
-            
+        # Calculate the material value of the pieces on the board.   
         for square in chess.SQUARES:
             piece = board.piece_at(square)
             if piece is not None:
@@ -370,15 +365,15 @@ class AlphaBetaChessTree:
         print("Analysis has been exported to chess_analysis.json.")
 
 
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
+#import matplotlib.pyplot as plt
+#from matplotlib.patches import Rectangle
 
 def san_to_uci(san,fen):
     board = chess.Board(fen)
     move = board.parse_san(san)
     return move.uci()
 
-def draw_board(board):
+"""def draw_board(board):
     fig, ax = plt.subplots()
     ax.set_xlim(0, 8)
     ax.set_ylim(0, 8)
@@ -408,6 +403,7 @@ def draw_board(board):
 def play_chess(fen , player="Human"):
     board = chess.Board(fen)
     turn = 1
+    
     
     if player == "Human":
         while not board.is_game_over():
@@ -455,15 +451,13 @@ def play_chess(fen , player="Human"):
         result = board.result()
         print("Game Over! Result:", result)
 
-
+"""
     
 def main():
-    fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"
-    #chess_tree = AlphaBetaChessTree(fen)
-    #best_move = chess_tree.get_best_next_move(chess_tree.root, 3)
-    #print("Best move:", best_move)
-    gamer=input("Human or Computer: ")
-    play_chess(fen,gamer)
+    fen = "r1bq1rk1/ppp2ppp/2n5/1B6/1Q6/4P3/2N2PPP/R1B1K2R b KQ - 1 1"
+    chess_tree = AlphaBetaChessTree(fen)
+    best_move = chess_tree.get_best_next_move(chess_tree.root, 3)
+    print("Best move:", best_move, san_to_uci(best_move,fen))
 
     # Please implement your own main function to test the AlphaBetaChessTree class.
     # Try various FEN strings and different depths to see how your algorithm performs.
