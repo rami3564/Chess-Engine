@@ -112,6 +112,7 @@ class AlphaBetaChessTree:
             if value > best_value:
                 best_value = value
                 best_move = move
+        print(best_value)
         return best_move
 
     def _alpha_beta(self, node, depth, alpha, beta, maximizing_player):
@@ -142,7 +143,7 @@ class AlphaBetaChessTree:
                     value = child_value
                     best_move = child
                 alpha = max(alpha, value)
-                if alpha > beta:
+                if alpha >= beta:
                     break # Beta cut-off
             return value, best_move
         if not maximizing_player:
@@ -154,7 +155,7 @@ class AlphaBetaChessTree:
                     value = child_value
                     best_move = child
                 beta = min(beta, value)
-                if alpha > beta:
+                if alpha >= beta:
                     break # Alpha cut-off
             return value, best_move
         
@@ -177,11 +178,15 @@ class AlphaBetaChessTree:
         piece_values = {'P': 100, 'N': 320, 'B': 330, 'R': 500, 'Q': 900, 'K': 20000,
                         'p': -100, 'n': -320, 'b': -330, 'r': -500, 'q': -900, 'k': -20000}
 
-
+        if board.turn == chess.BLACK:
+            turn = -1
+        else:
+            turn = 1
+            
         for square in chess.SQUARES:
             piece = board.piece_at(square)
             if piece is not None:
-                score += piece_values[piece.symbol()]
+                score += piece_values[piece.symbol()] 
         
         # Evaluate mobility 
         mobility = len(list(board.legal_moves))
@@ -243,10 +248,15 @@ class AlphaBetaChessTree:
                         'p': -100, 'n': -320, 'b': -330, 'r': -500, 'q': -900, 'k': -20000}
         
         # Calculate the material value of the pieces on the board.  
+        if board.turn == chess.BLACK:
+            turn = -1
+        else:
+            turn = 1
+            
         for square in chess.SQUARES:
             piece = board.piece_at(square)
-            if piece:
-                score += piece_values[piece.symbol()]
+            if piece is not None:
+                score += piece_values[piece.symbol()] 
         
         mobility = len(list(board.legal_moves))
         score += mobility if board.turn == chess.WHITE else -mobility
@@ -360,46 +370,13 @@ class AlphaBetaChessTree:
         print("Analysis has been exported to chess_analysis.json.")
 
 
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
-def generate_heatmap(moves,fen):
-    """
-    Generate a heatmap of moves made on a chessboard.
 
-    Parameters:
-    - moves (list): List of moves in UCI notation.
-
-    Returns:
-    - None (displays the heatmap)
-    """
-    # Initialize a 2D array to represent the chessboard
-    heatmap = np.zeros((8, 8))
-
-    # Iterate through moves and update the heatmap
+def san_to_uci(san,fen):
     board = chess.Board(fen)
-    for move in moves:
-        move_obj = board.parse_san(move)
-        to_square = move_obj.to_square
-        row = to_square // 8
-        col = to_square % 8
-        heatmap[row][col] += 1
-        board.push(move_obj)
-
-    # Plot the heatmap
-    plt.imshow(heatmap, cmap='hot', interpolation='nearest')
-    plt.colorbar(label='Move Frequency')
-    plt.title('Chess Heatmap')
-    plt.xlabel('File')
-    plt.ylabel('Rank')
-    plt.gca().invert_yaxis()  # Invert y-axis to match chessboard orientation
-    plt.xticks(np.arange(8), ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'])
-    plt.yticks(np.arange(8), np.arange(1, 9))
-    plt.show()
-
-def uci_to_san(move, board):
-    move_obj = board.parse_uci(move)
-    return board.san(move_obj)
+    move = board.parse_san(san)
+    return move.uci()
 
 def draw_board(board):
     fig, ax = plt.subplots()
@@ -431,8 +408,6 @@ def draw_board(board):
 def play_chess(fen , player="Human"):
     board = chess.Board(fen)
     turn = 1
-    moves=[]
-    originalfen=fen
     
     if player == "Human":
         while not board.is_game_over():
@@ -440,14 +415,12 @@ def play_chess(fen , player="Human"):
             chess_tree = AlphaBetaChessTree(fen)
             if turn ==1:
                 best_move = chess_tree.get_best_next_move(chess_tree.root, 3)
-                print("The Computer's Best move is:", best_move)
-                move = input("Enter your move: ")
+                print("The Computer's Best move is:", best_move , san_to_uci(best_move,fen))
+                move = san_to_uci(best_move,fen)
             else:
                 move = input("Enter your move: ")
             try:
                 board.push_san(move)
-                moves.append(move)
-                generate_heatmap(moves,originalfen)
                 fen=board.fen()
                 if turn == 2:
                     turn=1
@@ -465,8 +438,8 @@ def play_chess(fen , player="Human"):
             draw_board(board)
             chess_tree = AlphaBetaChessTree(fen)
             best_move = chess_tree.get_best_next_move(chess_tree.root, 3)
-            print("Computer"+ str(turn) +"'s move:", best_move)
-            move = input("Enter your move: ")
+            print("Computer"+ str(turn) +"'s move:", best_move, san_to_uci(best_move,fen))
+            move = san_to_uci(best_move,fen)
             try:
                 board.push_san(move)
                 fen=board.fen()
@@ -485,7 +458,7 @@ def play_chess(fen , player="Human"):
 
     
 def main():
-    fen = "4k2r/P5r1/8/8/8/8/3R4/R3K3 w Qk - 0 1"
+    fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"
     #chess_tree = AlphaBetaChessTree(fen)
     #best_move = chess_tree.get_best_next_move(chess_tree.root, 3)
     #print("Best move:", best_move)
