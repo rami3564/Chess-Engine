@@ -1,3 +1,3 @@
-# Data-Structure-Project
+# Chess Engine using Alpha-Beta Pruning 
 '''
-If you have any questions regarding push/pull requests feel free to text me
+
